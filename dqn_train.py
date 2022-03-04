@@ -42,7 +42,7 @@ def run(args):
     try:
         ray.init(address= "auto" if args.auto else None)
 
-        num_of_episodes = args.config['n_eps']
+        num_of_episodes = args.n_eps
         checkpoint_save_freq = 1
 
         trainer = DQNTrainer(config=args.config, env=CarlaEnv)
@@ -137,7 +137,7 @@ def main():
                            action="store_true",
                            default=False,
                            help="Flag to use auto address")
-    argparser.add_argument("-n", "--n_eps",
+    argparser.add_argument("-e", "--n_eps",
                            metavar="E",
                            default=100,
                            help="Total number of training episodes")

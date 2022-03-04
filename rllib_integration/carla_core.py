@@ -34,8 +34,8 @@ BASE_CORE_CONFIG = {
     "timestep": 0.05,  # Time step of the simulation
     "retries_on_error": 10,  # Number of tries to connect to the client
     "resolution_x": 600,  # Width of the server spectator camera
-    "resolution_y": 600,  # Height of the server spectator camera
-    "quality_level": "Low",  # Quality level of the simulation. Can be 'Low', 'High', 'Epic'
+    "resolution_y": 400,  # Height of the server spectator camera
+    "quality_level": "Epic",  # Quality level of the simulation. Can be 'Low', 'High', 'Epic'
     "enable_map_assets": False,  # enable / disable all town assets except for the road
     "enable_rendering": True,  # enable / disable camera images
     "show_display": False  # Whether or not the server will be displayed
