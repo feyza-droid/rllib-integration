@@ -1,6 +1,6 @@
-
 # To see the complete list of configurable parameters see:
 # https://github.com/ray-project/ray/blob/master/rllib/agents/trainer.py
+
 # === GENERAL ===
 framework: "torch"
 num_workers: 1
@@ -10,8 +10,8 @@ num_cpus_per_worker: 4
 rollout_fragment_length: 16
 timesteps_per_iteration: 0
 train_batch_size: 64
-learning_starts: 20000
-buffer_size: 5000
+learning_starts: 1000
+buffer_size: 250000
 horizon: 250
 lr: 0.0025
 

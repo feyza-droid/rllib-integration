@@ -6,6 +6,7 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
+import torch
 import numpy as np
 
 from ray.rllib.agents.callbacks import DefaultCallbacks
@@ -24,6 +25,9 @@ class DQNCallbacks(DefaultCallbacks):
 
     def on_episode_end(self, worker, base_env, policies, episode, **kwargs):
         print("--------- on_episode_end ----------")
+
+        print("base_env.vector_env.envs[0] : ", base_env.vector_env.envs[0].action_space)
+
         heading_deviation = episode.user_data["heading_deviation"]
         if len(heading_deviation) > 0:
             heading_deviation = np.mean(episode.user_data["heading_deviation"])

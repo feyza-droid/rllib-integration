@@ -5,9 +5,12 @@
 #
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
-"""DQN Algorithm. Tested with CARLA.
+
+"""
+DQN Algorithm. Tested with CARLA.
 You can visualize experiment results in ~/ray_results using TensorBoard.
 """
+
 from __future__ import print_function
 
 import argparse
@@ -38,19 +41,37 @@ EXPERIMENT_CLASS = DQNExperiment
 def run(args):
     try:
         ray.init(address= "auto" if args.auto else None)
-        trainer = DQNTrainer(config=args.config, env=CarlaEnv)
 
-        num_of_episodes = 2
+        num_of_episodes = args.config['n_eps']
+        checkpoint_save_freq = 1
+
+        trainer = DQNTrainer(config=args.config, env=CarlaEnv)
 
         for eps in range(num_of_episodes):
             result = trainer.train()
-            print("\nResult: ", pretty_print(result))
+            print("\n\n[Info] -> Result: ", pretty_print(result))
 
-            checkpoint = trainer.save()
-            print("checkpoint saved at:", checkpoint)
+            if eps % checkpoint_save_freq == 0:
+                checkpoint = trainer.save()
+                print("\n[Info] -> Checkpoint Saved @:", checkpoint)
+
+        # tune.run(
+        #     CustomDQNTrainer,
+        #     name=args.name,
+        #     local_dir=args.directory,
+        #     stop={
+        #         # "perf/ram_util_percent": 85.0},
+        #         "training_iteration": num_of_episodes
+        #     },
+        #     checkpoint_freq=checkpoint_save_freq,
+        #     checkpoint_at_end=True,
+        #     restore=get_checkpoint(args.name, args.directory, args.restore, args.overwrite),
+        #     config=args.config,
+        #     queue_trials=True
+        #     )
 
     finally:
-        print("[Info]: Shut Down!")
+        print("\n[Info]: Shut Down!")
         kill_all_servers()
         ray.shutdown()
 
@@ -70,8 +91,10 @@ def parse_config(args):
 
     return config
 
+
 def update_routes_and_scenarios_files(config):
-    cwd = os.getcwd() # current working directory
+    # current working directory
+    cwd = os.getcwd()
     path = cwd + "/custom_scenario_runner/"
 
     config["env_config"]["experiment"]["hero"]["routes"] = path + config["env_config"]["experiment"]["hero"]["routes"]
@@ -84,6 +107,7 @@ def update_routes_and_scenarios_files(config):
         raise Exception(config["env_config"]["experiment"]["hero"]["scenarios"] + " does not exist!")
 
     return config
+
 
 def main():
     argparser = argparse.ArgumentParser(description=__doc__)
@@ -113,14 +137,17 @@ def main():
                            action="store_true",
                            default=False,
                            help="Flag to use auto address")
+    argparser.add_argument("-n", "--n_eps",
+                           metavar="E",
+                           default=100,
+                           help="Total number of training episodes")
 
 
     args = argparser.parse_args()
     args.config = parse_config(args)
 
     if not args.tboff:
-        launch_tensorboard(logdir=os.path.join(args.directory, args.name),
-                           host="0.0.0.0" if args.auto else "localhost")
+        launch_tensorboard(logdir=os.path.join(args.directory, args.name), host="0.0.0.0" if args.auto else "localhost")
 
     run(args)
 
@@ -132,4 +159,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
     finally:
-        print('\ndone.')
+        print('\n chuff chuff is FINISHED !')
