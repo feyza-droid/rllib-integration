@@ -3,6 +3,7 @@ Original CARLA RLLib Integration Repository: [rllib-integration](https://github.
 ## Installation Steps
 
 * Download [Carla 0.9.11](https://carla-releases.s3.eu-west-3.amazonaws.com/Linux/CARLA_0.9.11.tar.gz)
+* unzip folder to PATH_TO_CARLA_ROOT_SH (user defined path)
 
 ```sh
 conda create -n carla python=3.7
