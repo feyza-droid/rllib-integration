@@ -41,6 +41,9 @@ BASE_CORE_CONFIG = {
     "show_display": False  # Whether or not the server will be displayed
 }
 
+# if False: only clear weather will be active
+IS_WEATHER_CHANGE = True
+
 WEATHERS = {
         'ClearNoon': carla.WeatherParameters.ClearNoon,
         'ClearSunset': carla.WeatherParameters.ClearSunset,
@@ -98,6 +101,8 @@ class CarlaCore:
         self.sensor_interface = SensorInterface()
 
         self.is_scenario_and_hero_initialized = False
+
+        self.weather_id = WEATHERS_IDS[0]
 
         self.init_server()
         self.connect_client()
@@ -303,8 +308,7 @@ class CarlaCore:
         """
         self.tick_counter += 1
         
-        # TODO: should we avoid it when we are evaluating the model?
-        if self.tick_counter % 10 == 0:
+        if self.tick_counter % 20 == 0 and IS_WEATHER_CHANGE:
             self.change_weather()
 
         # Move hero vehicle and scenario vehicles
