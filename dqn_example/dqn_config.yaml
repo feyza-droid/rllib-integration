@@ -18,14 +18,14 @@ lr: 0.0025
 # "batch_mode": "complete_episodes"
 
 # === RAINBOW ===
-num_atoms: 51 # more than 1
-v_min: -10.0 # TODO: set v_min and v_max according to your expected range of returns
-v_max: 10.0
-noisy: True
-dueling: True
-double_q: True
-n_step: 2 # between 1 and 10
-prioritized_replay: True
+# num_atoms: 51 # more than 1
+# v_min: -10.0 # TODO: set v_min and v_max according to your expected range of returns
+# v_max: 10.0
+# noisy: True
+# dueling: True
+# double_q: True
+# n_step: 2 # between 1 and 10
+# prioritized_replay: True
 
 # === EXPLORATION ===
 # "exploration_config": {
@@ -40,7 +40,6 @@ exploration_config: {
 }
 
 # === NETWORK ===
-hiddens: [64, 64, 64]
 # hiddens: [256, 512]
 # model: {
 #   dim: 300,
@@ -54,6 +53,15 @@ hiddens: [64, 64, 64]
 #     [512, [5, 5], 1],
 #   ]
 # }
+
+# === CUSTOM MODEL ===
+model:
+  custom_model: "custom_dqn_network"
+  custom_model_config: {}
+  fcnet_hiddens: [64, 64, 4]
+  fcnet_activation:
+  conv_activation:
+  dim: 1000
 
 # === EVALUATION ===
 evaluation_interval: 0
@@ -72,7 +80,7 @@ env_config:
     retries_on_error: 25
     resolution_x: 600
     resolution_y: 400
-    quality_level: "Low"
+    quality_level: "Epic"
     enable_map_assets: True
     enable_rendering: True
     show_display: True
