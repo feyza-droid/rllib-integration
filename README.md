@@ -30,7 +30,7 @@ source ~/.bashrc
 
 ## Provision Steps
 
-* move 'resnet50.zip' file to directory: <DeFIX_PATH/checkpoint/models/>
+* move 'resnet50' file to directory: <DeFIX_PATH/checkpoint/models/>
 
 ## Training
 

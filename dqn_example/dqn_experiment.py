@@ -49,7 +49,7 @@ class DQNExperiment(BaseExperiment):
         self.resnet_model = models.resnet50(pretrained=False)
 
         # NOTE: comment out the following two lines if resnet model is not pre-save
-        resnet_model_path = os.path.join(os.path.join(os.environ.get("DeFIX_PATH"), "checkpoint/models/"), "resnet50.zip")
+        resnet_model_path = os.path.join(os.path.join(os.environ.get("DeFIX_PATH"), "checkpoint/models/"), "resnet50")
         self.resnet_model.load_state_dict(torch.load(resnet_model_path))
 
         # freeze weights
