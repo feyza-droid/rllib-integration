@@ -152,7 +152,7 @@ def main():
                            help="Flag to use auto address")
     argparser.add_argument("-i", "--n_iters",
                            metavar="I",
-                           default=1000,
+                           default=1,
                            help="Total number of training iterations")
 
     args = argparser.parse_args()

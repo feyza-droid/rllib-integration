@@ -7,10 +7,10 @@ num_workers: 1
 num_gpus: 0
 num_gpus_per_worker: 1
 num_cpus_per_worker: 4
-rollout_fragment_length: 16
+rollout_fragment_length: 200 # 16
 timesteps_per_iteration: 0
 train_batch_size: 64
-learning_starts: 1000
+learning_starts: 10 #1000
 buffer_size: 250000
 horizon: 250
 lr: 0.0025
@@ -18,14 +18,14 @@ lr: 0.0025
 # "batch_mode": "complete_episodes"
 
 # === RAINBOW ===
-# num_atoms: 51 # more than 1
-# v_min: -10.0 # TODO: set v_min and v_max according to your expected range of returns
-# v_max: 10.0
-# noisy: True
-# dueling: True
-# double_q: True
-# n_step: 2 # between 1 and 10
-# prioritized_replay: True
+num_atoms: 51 # more than 1
+v_min: -10.0 # TODO: set v_min and v_max according to your expected range of returns
+v_max: 10.0
+noisy: True
+dueling: True
+double_q: True
+n_step: 2 # between 1 and 10
+prioritized_replay: True
 
 # === EXPLORATION ===
 # "exploration_config": {
@@ -87,7 +87,7 @@ env_config:
     debug_mode: 1
   experiment:
     hero:
-      routes: "routes/failed_routes/town05_long/stuck_vehicle_1.xml"
+      routes: "routes/failed_routes/town01_short/red_light_1.xml" #town05_long/stuck_vehicle_1.xml"
       scenarios: "scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 1

@@ -120,7 +120,7 @@ class CarlaCore:
         uses_stream_port = is_used(self.server_port + 1)
         while uses_server_port and uses_stream_port:
             if uses_server_port:
-                print("Is using the server port: " + self.server_port)
+                print("Is using the server port: " + str(self.server_port))
             if uses_stream_port:
                 print("Is using the streaming port: " + str(self.server_port+1))
             self.server_port += 2
@@ -264,17 +264,6 @@ class CarlaCore:
         print(f"self.is_scenario_and_hero_initialized {self.is_scenario_and_hero_initialized}")
         if self.is_scenario_and_hero_initialized:
             self.scenario_cleanup()
-
-        # TODO: perform successful cleanup
-        """
-        if self.scenario_exist is not None:
-            self.manager.stop_scenario()
-            self.scenario.remove_all_actors()
-            if self.manager:
-                self.manager.cleanup()
-            CarlaDataProvider.cleanup()
-            print("Scenario cleaning up")
-        """
 
         self.scenario_and_hero_init(hero_config)
 

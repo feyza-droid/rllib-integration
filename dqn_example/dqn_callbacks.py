@@ -18,7 +18,7 @@ class DQNCallbacks(DefaultCallbacks):
         episode.user_data["heading_deviation"] = []
 
     def on_episode_step(self, worker, base_env, episode, **kwargs):
-        print("--------- on_episode_step ----------")
+        # print("--------- on_episode_step ----------")
 
         heading_deviation = worker.env.experiment.last_heading_deviation
         if heading_deviation > 0:

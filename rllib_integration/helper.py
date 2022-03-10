@@ -20,6 +20,9 @@ np.random.seed(0)
 from tensorboard import program
 from collections import deque
 
+import carla
+from srunner.scenariomanager.carla_data_provider import * 
+
 
 def process_image_for_dnn(image, normalized=True, torch_normalize=True):
     """
@@ -255,6 +258,9 @@ def calculate_high_level_action(turn_controller, speed_controller, high_level_ac
         offset = 0.0
         new_near_node = near_node
 
+    if high_level_action == 1 or high_level_action == 3:
+        CarlaDataProvider.get_world().debug.draw_point(carla.Location(new_near_node[1], -new_near_node[0], 1.0), size=0.1, color=carla.Color(0, 0, 255), life_time=-1.0)
+
     # get auto-pilot actions
     steer, throttle, angle = get_control(turn_controller, speed_controller, new_near_node, gps, theta, speed)
 
@@ -276,8 +282,10 @@ class RoutePlanner(object):
 
         # self.mean = np.array([49.0, 8.0]) # for carla 9.9
         # self.scale = np.array([111324.60662786, 73032.1570362]) # for carla 9.9
-        self.mean = np.array([0.0, 0.0]) # for carla 9.10
-        self.scale = np.array([111324.60662786, 111319.490945]) # for carla 9.10
+        # self.mean = np.array([0.0, 0.0]) # for carla 9.10
+        # self.scale = np.array([111324.60662786, 111319.490945]) # for carla 9.10
+        self.mean = np.array([0.0, 0.0])
+        self.scale = np.array([111324.60662786, 111324.60662786])
 
     def set_route(self, global_plan, gps=False):
         self.route.clear()

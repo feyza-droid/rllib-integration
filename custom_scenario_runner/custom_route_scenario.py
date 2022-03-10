@@ -288,7 +288,7 @@ class CustomRouteScenario(BasicScenario):
         """
         for w in waypoints:
             wp = w[0].location + carla.Location(z=vertical_shift)
-
+            
             size = 0.2
             if w[1] == RoadOption.LEFT:  # Yellow
                 color = carla.Color(255, 255, 0)
