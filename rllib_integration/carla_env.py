@@ -59,7 +59,7 @@ class CarlaEnv(gym.Env):
 
         observation, info = self.experiment.get_observation(sensor_data, self.hero)
         done = self.experiment.get_done_status(observation, self.core)
-        reward = self.experiment.compute_reward(observation, self.core)
+        reward = self.experiment.compute_reward(sensor_data, observation, self.core)
 
         print(f"action {control} reward {reward} done {done}")
 

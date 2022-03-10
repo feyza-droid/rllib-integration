@@ -273,6 +273,167 @@ def calculate_high_level_action(turn_controller, speed_controller, high_level_ac
 
     return throttle, steer, brake
 
+def traffic_data(hero_vehicle, world):
+    all_actors = world.get_actors()
+
+    lights_list = all_actors.filter('*traffic_light*')
+    walkers_list = all_actors.filter('*walker*')
+    vehicle_list = all_actors.filter('*vehicle*')
+    stop_list = all_actors.filter('*stop*')
+
+    traffic_lights = get_nearby_lights(hero_vehicle, lights_list)
+    stops = get_nearby_lights(hero_vehicle, stop_list)
+
+    if len(stops) == 0:
+        stop = None
+    else:
+        stop = stops
+
+    light = is_light_red(traffic_lights)
+    walker = is_walker_hazard(hero_vehicle, walkers_list)
+    vehicle = is_vehicle_hazard(hero_vehicle, vehicle_list)
+    # stop = is_stop_sign(stop) # TODO:
+
+    return light, walker, vehicle, stop
+
+def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5):
+    result = list()
+
+    transform = vehicle.get_transform()
+    pos = transform.location
+    theta = np.radians(90 + transform.rotation.yaw)
+    R = np.array([
+        [np.cos(theta), -np.sin(theta)],
+        [np.sin(theta),  np.cos(theta)],
+        ])
+
+    for light in lights:
+        delta = light.get_transform().location - pos
+
+        target = R.T.dot([delta.x, delta.y])
+        target *= pixels_per_meter
+        target += size // 2
+
+        if min(target) < 0 or max(target) >= size:
+            continue
+
+        trigger = light.trigger_volume
+        light.get_transform().transform(trigger.location)
+        dist = trigger.location.distance(vehicle.get_location())
+        a = np.sqrt(
+                trigger.extent.x ** 2 +
+                trigger.extent.y ** 2 +
+                trigger.extent.z ** 2)
+        b = np.sqrt(
+                vehicle.bounding_box.extent.x ** 2 +
+                vehicle.bounding_box.extent.y ** 2 +
+                vehicle.bounding_box.extent.z ** 2)
+
+        total = a + b
+        threshold = 1.0
+        if dist + threshold > total:
+            continue
+
+        result.append(light)
+
+    return result
+
+def is_light_red(traffic_lights):
+    for light in traffic_lights:
+        if light.get_state() == carla.TrafficLightState.Red:
+            return True
+        elif light.get_state() == carla.TrafficLightState.Yellow:
+            return True
+    return None
+
+def is_walker_hazard(hero_vehicle, walkers_list):
+    p1 = _numpy(hero_vehicle.get_location())
+    v1 = 10.0 * _orientation(hero_vehicle.get_transform().rotation.yaw)
+    for walker in walkers_list:
+        v2_hat = _orientation(walker.get_transform().rotation.yaw)
+        s2 = np.linalg.norm(_numpy(walker.get_velocity()))
+        if s2 < 0.05:
+            v2_hat *= s2
+        p2 = -3.0 * v2_hat + _numpy(walker.get_location())
+        v2 = 8.0 * v2_hat
+        collides, collision_point = get_collision(p1, v1, p2, v2)
+        if collides:
+            return walker
+    return None
+
+# TODO:
+"""
+def is_stop_sign(is_stop):
+    if self.stop_step < 200 and is_stop is not None:
+        self.stop_step += 1
+        self.not_brake_step = 0
+        return True
+    
+    else:
+        if self.not_brake_step < 300:
+            self.not_brake_step += 1 
+        else:
+            self.stop_step = 0
+        return None
+"""
+
+def _numpy(carla_vector, normalize=False):
+    result = np.float32([carla_vector.x, carla_vector.y])
+
+    if normalize:
+        return result / (np.linalg.norm(result) + 1e-4)
+
+    return result
+
+def _orientation(yaw):
+    return np.float32([np.cos(np.radians(yaw)), np.sin(np.radians(yaw))])
+
+
+def get_collision(p1, v1, p2, v2):
+    A = np.stack([v1, -v2], 1)
+    b = p2 - p1
+
+    if abs(np.linalg.det(A)) < 1e-3:
+        return False, None
+
+    x = np.linalg.solve(A, b)
+    collides = all(x >= 0) and all(x <= 1) # how many seconds until collision
+
+    return collides, p1 + x[0] * v1
+
+
+def is_vehicle_hazard(hero_vehicle, vehicle_list):
+    o1 = _orientation(hero_vehicle.get_transform().rotation.yaw)
+    p1 = _numpy(hero_vehicle.get_location())
+    s1 = max(10, 3.0 * np.linalg.norm(_numpy(hero_vehicle.get_velocity()))) # increases the threshold distance
+    v1_hat = o1
+    v1 = s1 * v1_hat
+    for target_vehicle in vehicle_list:
+        if target_vehicle.id == hero_vehicle.id:
+            continue
+        o2 = _orientation(target_vehicle.get_transform().rotation.yaw)
+        p2 = _numpy(target_vehicle.get_location())
+        s2 = max(5.0, 2.0 * np.linalg.norm(_numpy(target_vehicle.get_velocity())))
+        v2_hat = o2
+        v2 = s2 * v2_hat
+        p2_p1 = p2 - p1
+        distance = np.linalg.norm(p2_p1)
+        p2_p1_hat = p2_p1 / (distance + 1e-4)
+        angle_to_car = np.degrees(np.arccos(v1_hat.dot(p2_p1_hat)))
+        angle_between_heading = np.degrees(np.arccos(o1.dot(o2)))
+        angle_to_car = min(angle_to_car, 360.0 - angle_to_car)
+        angle_between_heading = min(angle_between_heading, 360.0 - angle_between_heading)
+        if angle_between_heading > 60.0 and not (angle_to_car < 15 and distance < s1):
+            continue
+        elif angle_to_car > 30.0:
+            continue
+        elif distance > s1 and distance < s2:
+            target_vehicle_speed = target_vehicle.get_velocity()
+            continue
+        elif distance > s1:
+            continue
+        return target_vehicle
+    return None
 
 class RoutePlanner(object):
     def __init__(self, min_distance, max_distance, debug_size=256):

@@ -87,7 +87,7 @@ env_config:
     debug_mode: 1
   experiment:
     hero:
-      routes: "routes/failed_routes/town01_short/red_light_1.xml" #town05_long/stuck_vehicle_1.xml"
+      routes: "routes/failed_routes/town05_long/stuck_vehicle_1.xml" #town01_short/red_light_1.xml"
       scenarios: "scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 1

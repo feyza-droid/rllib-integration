@@ -16,7 +16,7 @@ from gym.spaces import Box, Discrete
 import carla
 
 from rllib_integration.base_experiment import BaseExperiment
-from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, PIDController
+from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, traffic_data, PIDController
 
 
 class DQNExperiment(BaseExperiment):
@@ -204,10 +204,28 @@ class DQNExperiment(BaseExperiment):
 
         return self.done_time_idle or self.done_falling or self.done_time_episode
 
+    def compute_reward(self, sensor_data, observation, core):
+        hero = core.hero
+        world = core.world
+
+        is_light, is_walker, is_vehicle, is_stop = traffic_data(hero, world) # TODO: is_stop is not working correctly right now
+        print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
+
+        hero_speed_kmph = get_speed(hero)
+        throttle = self.last_action.throttle
+        hero_gps = self.ego_gps
+
+        print("Hero speed kmh-", hero_speed_kmph, " throttle-", throttle, " hero_gps-", hero_gps)
+
+        #collision_sensor_data = sensor_data['collision']
+        #print("collision_sensor_data ", collision_sensor_data)
+
+        reward = 0.0
+        
+        return reward
+
+"""
     def compute_reward(self, observation, core):
-        """
-        Computes the reward
-        """
         def unit_vector(vector):
             return vector / np.linalg.norm(vector)
         def compute_angle(u, v):
@@ -289,3 +307,4 @@ class DQNExperiment(BaseExperiment):
             reward += 100
 
         return reward
+"""
