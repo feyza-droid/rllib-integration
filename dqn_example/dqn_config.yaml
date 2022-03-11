@@ -6,13 +6,13 @@ framework: "torch"
 num_workers: 1
 num_gpus: 0
 num_gpus_per_worker: 1
-num_cpus_per_worker: 8
-rollout_fragment_length: 200
+num_cpus_per_worker: 10
+rollout_fragment_length: 500
 timesteps_per_iteration: 0
 train_batch_size: 64
-learning_starts: 10 #1000
+learning_starts: 1000
 buffer_size: 200_000
-horizon: 250
+horizon: 1000
 lr: 0.0025
 
 # "batch_mode": "complete_episodes"
@@ -78,12 +78,12 @@ env_config:
     resolution_y: 400
     quality_level: "Epic"
     enable_map_assets: True
-    enable_rendering: True
-    show_display: True
+    enable_rendering: False
+    show_display: False
     debug_mode: 0
   experiment:
     hero:
-      routes: "routes/failed_routes/town05_short/traffic_light_3.xml" #town05_long/stuck_vehicle_1.xml" #town01_short/red_light_1.xml"
+      routes: "routes/failed_routes/town01_short/red_light_2.xml" #town05_short/traffic_light_3.xml" #town05_long/stuck_vehicle_1.xml" #town01_short/red_light_1.xml" # make sure you change the town below accordingly
       scenarios: "scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 0
@@ -122,8 +122,8 @@ env_config:
           type: "sensor.other.collision"
     background_activity:
       tm_hybrid_mode: True
-    town: "Town05"
+    town: "Town01"
     others:
       framestack: 4
       max_time_idle: 500
-      max_time_episode: 250
+      max_time_episode: 1000
