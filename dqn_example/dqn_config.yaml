@@ -6,12 +6,12 @@ framework: "torch"
 num_workers: 1
 num_gpus: 0
 num_gpus_per_worker: 1
-num_cpus_per_worker: 4
-rollout_fragment_length: 200 # 16
+num_cpus_per_worker: 8
+rollout_fragment_length: 200
 timesteps_per_iteration: 0
 train_batch_size: 64
 learning_starts: 10 #1000
-buffer_size: 250000
+buffer_size: 200_000
 horizon: 250
 lr: 0.0025
 
@@ -19,24 +19,20 @@ lr: 0.0025
 
 # === RAINBOW ===
 num_atoms: 51 # more than 1
-v_min: -10.0 # TODO: set v_min and v_max according to your expected range of returns
-v_max: 10.0
+v_min: -100.0 # TODO: set v_min and v_max according to your expected range of returns
+v_max: 50.0
 noisy: True
 dueling: True
 double_q: True
-n_step: 2 # between 1 and 10
+n_step: 5 # between 1 and 10
 prioritized_replay: True
 
 # === EXPLORATION ===
-# "exploration_config": {
-#   "type": "EpsilonGreedy",
-#   "initial_epsilon": 1.0,
-#   "final_epsilon": 0.02,
-#   "epsilon_timesteps": 2000000
-# }
-exploration_config: {
-  type: "SoftQ",
-  temperature: 1.0,
+"exploration_config": {
+  "type": "EpsilonGreedy",
+  "initial_epsilon": 1.0,
+  "final_epsilon": 0.02,
+  "epsilon_timesteps": 2_000_000
 }
 
 # === NETWORK ===
@@ -84,13 +80,13 @@ env_config:
     enable_map_assets: True
     enable_rendering: True
     show_display: True
-    debug_mode: 1
+    debug_mode: 0
   experiment:
     hero:
-      routes: "routes/failed_routes/town05_long/stuck_vehicle_1.xml" #town01_short/red_light_1.xml"
+      routes: "routes/failed_routes/town05_short/traffic_light_3.xml" #town05_long/stuck_vehicle_1.xml" #town01_short/red_light_1.xml"
       scenarios: "scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
-      debug_mode: 1
+      debug_mode: 0
       ego_vehicle_type: "vehicle.lincoln.mkz2017"
       sensors:
         birdview:
@@ -122,10 +118,12 @@ env_config:
           noise_gyro_stddev_x: 0.001
           noise_gyro_stddev_y: 0.001
           noise_gyro_stddev_z: 0.001
+        collision:
+          type: "sensor.other.collision"
     background_activity:
       tm_hybrid_mode: True
     town: "Town05"
     others:
       framestack: 4
-      max_time_idle: 600
-      max_time_episode: 100 #6400
+      max_time_idle: 500
+      max_time_episode: 250

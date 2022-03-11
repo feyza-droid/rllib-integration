@@ -18,6 +18,7 @@ import carla
 from rllib_integration.base_experiment import BaseExperiment
 from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, traffic_data, PIDController
 
+IS_STUCK_VEHICLE = False
 
 class DQNExperiment(BaseExperiment):
     def __init__(self, config={}):
@@ -40,6 +41,7 @@ class DQNExperiment(BaseExperiment):
         self.route_planner = None
         self.command_planner = None
 
+        self.previous_ego_gps = None
         self.ego_gps = None
         self.compass = None
         self.speed_ms = None
@@ -69,6 +71,7 @@ class DQNExperiment(BaseExperiment):
         self.done_time_idle = False
         self.done_falling = False
         self.done_time_episode = False
+        self.done_collision = False
 
         # hero variables
         self.last_location = None
@@ -102,11 +105,12 @@ class DQNExperiment(BaseExperiment):
         )
         return image_space
 
-    def compute_action(self, action):
+    def compute_action(self, core, action):
         """
         Given the action, returns a carla.VehicleControl() which will be applied to the hero
         """
-        throttle, steer, brake = calculate_high_level_action(turn_controller=self.turn_controller,
+        throttle, steer, brake = calculate_high_level_action(world=core.world,
+                                                             turn_controller=self.turn_controller,
                                                              speed_controller=self.speed_controller,
                                                              high_level_action=action,
                                                              gps=self.ego_gps,
@@ -136,6 +140,7 @@ class DQNExperiment(BaseExperiment):
         """
         stack_images = False # TODO: remove this option
 
+        self.previous_ego_gps = self.ego_gps
         self.ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
         self.compass = sensor_data['imu'][1][-1]
 
@@ -184,7 +189,7 @@ class DQNExperiment(BaseExperiment):
 
             return image_features, {}
 
-    def get_done_status(self, observation, core):
+    def get_done_status(self, sensor_data, core):
         """
         Returns whether or not the experiment has to end
         """
@@ -202,109 +207,49 @@ class DQNExperiment(BaseExperiment):
         self.done_time_episode = self.max_time_episode < self.time_episode
         self.done_falling = hero.get_location().z < -0.5
 
-        return self.done_time_idle or self.done_falling or self.done_time_episode
+        if 'collision' in sensor_data:
+            self.done_collision = True
 
-    def compute_reward(self, sensor_data, observation, core):
+        return self.done_time_idle or self.done_falling or self.done_time_episode or self.done_collision
+
+    def compute_reward(self, sensor_data, core):
         hero = core.hero
         world = core.world
-
-        is_light, is_walker, is_vehicle, is_stop = traffic_data(hero, world) # TODO: is_stop is not working correctly right now
-        print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle, " stop-", is_stop)
-
-        hero_speed_kmph = get_speed(hero)
-        throttle = self.last_action.throttle
-        hero_gps = self.ego_gps
-
-        print("Hero speed kmh-", hero_speed_kmph, " throttle-", throttle, " hero_gps-", hero_gps)
-
-        #collision_sensor_data = sensor_data['collision']
-        #print("collision_sensor_data ", collision_sensor_data)
 
         reward = 0.0
+
+        ego_speed_kmph = get_speed(hero)
+        throttle = self.last_action.throttle
+
+        is_light, is_walker, is_vehicle, _ = traffic_data(hero, world)
+        print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
+
+        if IS_STUCK_VEHICLE: # TODO: change this
+            objects_of_concern = []
+        else:
+            objects_of_concern = [is_light, is_walker, is_vehicle]
+
+        if any(x is not None for x in objects_of_concern):
+            # accelerating while it should brake
+            if throttle < 0.1:
+                print("[Reward]: correctly braking !")
+                # braking is desired
+                reward += 50
+            else:
+                print("[Penalty]: not braking !")
+
+            reward -= ego_speed_kmph
+        else:
+            reward += ego_speed_kmph
+        
+        # distance from starting position
+        reward += np.linalg.norm(self.ego_gps - self.previous_ego_gps)
+
+        # negative reward for collision
+        if 'collision' in sensor_data:
+            print("[Penalty]: collision !")
+            reward -= 100
+
+        print("Ego speed kmh-",ego_speed_kmph, " throttle-",throttle, " ego_gps-",self.ego_gps)
         
         return reward
-
-"""
-    def compute_reward(self, observation, core):
-        def unit_vector(vector):
-            return vector / np.linalg.norm(vector)
-        def compute_angle(u, v):
-            return -math.atan2(u[0]*v[1] - u[1]*v[0], u[0]*v[0] + u[1]*v[1])
-        def find_current_waypoint(map_, hero):
-            return map_.get_waypoint(hero.get_location(), project_to_road=False, lane_type=carla.LaneType.Any)
-        def inside_lane(waypoint, allowed_types):
-            if waypoint is not None:
-                return waypoint.lane_type in allowed_types
-            return False
-
-        world = core.world
-        hero = core.hero
-        map_ = core.map
-
-        # Hero-related variables
-        hero_location = hero.get_location()
-        hero_velocity = get_speed(hero)
-        hero_heading = hero.get_transform().get_forward_vector()
-        hero_heading = [hero_heading.x, hero_heading.y]
-
-        # Initialize last location
-        if self.last_location == None:
-            self.last_location = hero_location
-
-        # Compute deltas
-        delta_distance = float(np.sqrt(np.square(hero_location.x - self.last_location.x) + np.square(hero_location.y - self.last_location.y)))
-        delta_velocity = hero_velocity - self.last_velocity
-
-        # Update variables
-        self.last_location = hero_location
-        self.last_velocity = hero_velocity
-
-        # Reward if going forward
-        reward = delta_distance
-
-        # Reward if going faster than last step
-        if hero_velocity < 20.0:
-            reward += 0.05 * delta_velocity
-
-        # La duracion de estas infracciones deberia ser 2 segundos?
-        # Penalize if not inside the lane
-        closest_waypoint = map_.get_waypoint(
-            hero_location,
-            project_to_road=False,
-            lane_type=carla.LaneType.Any
-        )
-        if closest_waypoint is None or closest_waypoint.lane_type not in self.allowed_types:
-            reward += -0.5
-            self.last_heading_deviation = math.pi
-        else:
-            if not closest_waypoint.is_junction:
-                wp_heading = closest_waypoint.transform.get_forward_vector()
-                wp_heading = [wp_heading.x, wp_heading.y]
-                angle = compute_angle(hero_heading, wp_heading)
-                self.last_heading_deviation = abs(angle)
-
-                if np.dot(hero_heading, wp_heading) < 0:
-                    # We are going in the wrong direction
-                    reward += -0.5
-
-                else:
-                    if abs(math.sin(angle)) > 0.4:
-                        if self.last_action == None:
-                            self.last_action = carla.VehicleControl()
-
-                        if self.last_action.steer * math.sin(angle) >= 0:
-                            reward -= 0.05
-            else:
-                self.last_heading_deviation = 0
-
-        if self.done_falling:
-            reward += -40
-        if self.done_time_idle:
-            print("Done idle")
-            reward += -100
-        if self.done_time_episode:
-            print("Done max time")
-            reward += 100
-
-        return reward
-"""

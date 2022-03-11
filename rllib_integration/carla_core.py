@@ -276,7 +276,7 @@ class CarlaCore:
         # Part 3: Spawn the new sensors
         for name, attributes in hero_config["sensors"].items():
             sensor = SensorFactory.spawn(name, attributes, self.sensor_interface, self.hero)
-            print(f"sensor {sensor} spawned!")
+            print(f"name {name} sensor {sensor} spawned!")
 
         self.manager.init_tick_scenario()
         
