@@ -25,6 +25,7 @@ from srunner.scenariomanager.carla_data_provider import *
 
 DEBUG_MODE = False
 
+
 def process_image_for_dnn(image, normalized=True, torch_normalize=True):
     """
     Convert image to format required for ResNet network and normalize between -1 and 1 if required
@@ -193,7 +194,7 @@ def get_angle_to(pos, theta, target):
     return angle
 
 
-def get_control(turn_controller, speed_controller, target, gps, theta, speed):
+def get_control(turn_controller, speed_controller, target, far_target, gps, theta, speed):
     # steering
     angle_unnorm = get_angle_to(pos=gps, theta=theta, target=target)
     angle = angle_unnorm / 90
@@ -203,7 +204,7 @@ def get_control(turn_controller, speed_controller, target, gps, theta, speed):
     steer = round(steer, 3)
 
     # acceleration
-    angle_far_unnorm = get_angle_to(pos=gps, theta=theta, target=target)
+    angle_far_unnorm = get_angle_to(pos=gps, theta=theta, target=far_target)
     should_slow = abs(angle_far_unnorm) > 45.0 or abs(angle_unnorm) > 5.0
     target_speed = 4.0 if should_slow else 7.0
     
@@ -239,31 +240,32 @@ def shift_point(ego_compass, ego_gps, near_node, offset_amount):
     return new_near_node
 
 
-def calculate_high_level_action(world, turn_controller, speed_controller, high_level_action, gps, theta, speed, near_node):
+def calculate_high_level_action(world, turn_controller, speed_controller, high_level_action, gps, initial_gps, theta, initial_theta, speed, near_node, far_target):
     """
     0 -> brake
     1 -> no brake - go to left lane of next_waypoint
     2 -> no brake - keep lane (stay at next_waypoint's lane)
     3 -> no brake - go to right lane of next_waypoint
     """
+    high_level_action = 3
 
     if high_level_action == 1: # left
         offset = -3.5
-        new_near_node = shift_point(ego_compass=theta, ego_gps=gps, near_node=near_node, offset_amount=offset)
+        new_near_node = shift_point(ego_compass=initial_theta, ego_gps=initial_gps, near_node=near_node, offset_amount=offset)
     
     elif high_level_action == 3: # right
         offset = 3.5
-        new_near_node = shift_point(ego_compass=theta, ego_gps=gps, near_node=near_node, offset_amount=offset)
+        new_near_node = shift_point(ego_compass=initial_theta, ego_gps=initial_gps, near_node=near_node, offset_amount=offset)
     
     else: # keep lane
         offset = 0.0
         new_near_node = near_node
-
+    
     if DEBUG_MODE and (high_level_action == 1 or high_level_action == 3):
         world.debug.draw_point(carla.Location(new_near_node[1], -new_near_node[0], 1.0), size=0.1, color=carla.Color(0, 0, 255), life_time=-1.0)
 
     # get auto-pilot actions
-    steer, throttle, angle = get_control(turn_controller, speed_controller, new_near_node, gps, theta, speed)
+    steer, throttle, angle = get_control(turn_controller, speed_controller, new_near_node, far_target, gps, theta, speed)
 
     if high_level_action == 0: # brake
         throttle = 0.0
@@ -273,6 +275,7 @@ def calculate_high_level_action(world, turn_controller, speed_controller, high_l
         brake = 0.0
 
     return throttle, steer, brake
+
 
 def traffic_data(hero_vehicle, world):
     all_actors = world.get_actors()
@@ -296,6 +299,7 @@ def traffic_data(hero_vehicle, world):
     # stop = is_stop_sign(stop) # TODO:
 
     return light, walker, vehicle, stop
+
 
 def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5):
     result = list()
@@ -339,6 +343,7 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
 
     return result
 
+
 def is_light_red(traffic_lights):
     for light in traffic_lights:
         if light.get_state() == carla.TrafficLightState.Red:
@@ -346,6 +351,7 @@ def is_light_red(traffic_lights):
         elif light.get_state() == carla.TrafficLightState.Yellow:
             return True
     return None
+
 
 def is_walker_hazard(hero_vehicle, walkers_list):
     p1 = _numpy(hero_vehicle.get_location())
@@ -378,6 +384,7 @@ def is_stop_sign(is_stop):
         return None
 """
 
+
 def _numpy(carla_vector, normalize=False):
     result = np.float32([carla_vector.x, carla_vector.y])
 
@@ -385,6 +392,7 @@ def _numpy(carla_vector, normalize=False):
         return result / (np.linalg.norm(result) + 1e-4)
 
     return result
+
 
 def _orientation(yaw):
     return np.float32([np.cos(np.radians(yaw)), np.sin(np.radians(yaw))])
@@ -435,6 +443,7 @@ def is_vehicle_hazard(hero_vehicle, vehicle_list):
             continue
         return target_vehicle
     return None
+
 
 class RoutePlanner(object):
     def __init__(self, min_distance, max_distance, debug_size=256):
