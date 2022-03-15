@@ -54,14 +54,14 @@ class CarlaEnv(gym.Env):
         Computes one tick of the environment in order to return the new observation,
         as well as the rewards
         """
-        control = self.experiment.compute_action(self.core, action)
+        control = self.experiment.compute_action(core=self.core, action_value=action)
         sensor_data = self.core.tick(control)
 
         observation, info = self.experiment.get_observation(sensor_data, self.hero)
         done = self.experiment.get_done_status(sensor_data, self.core)
         reward = self.experiment.compute_reward(sensor_data, self.core)
 
-        print(f"action {control} reward {reward} done {done}\n")
+        print(f"action {action} control {control} reward {reward} done {done}\n")
 
         if done:
             print("*******End of the episode!*******")
