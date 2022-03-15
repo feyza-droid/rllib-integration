@@ -68,7 +68,7 @@ class BaseExperiment(object):
         """
         raise NotImplementedError
 
-    def compute_action(self, action):
+    def compute_action(self, core, action_value):
         """
         Given the action, returns a carla.VehicleControl() which will be applied to the hero
         
