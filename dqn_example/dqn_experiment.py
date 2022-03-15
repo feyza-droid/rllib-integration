@@ -18,7 +18,8 @@ import carla
 from rllib_integration.base_experiment import BaseExperiment
 from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, traffic_data, PIDController
 
-IS_STUCK_VEHICLE = False
+IS_STUCK_VEHICLE = True
+
 
 class DQNExperiment(BaseExperiment):
     def __init__(self, config={}):
@@ -35,17 +36,17 @@ class DQNExperiment(BaseExperiment):
         self.last_heading_deviation = 0
         self.last_action = None
 
-        self.turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
+        self.turn_controller = PIDController(K_P=5.0, K_I=3, K_D=3.0, n=40)
         self.speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
 
         self.route_planner = None
         self.command_planner = None
 
-        self.previous_ego_gps = None
         self.ego_gps = None
-        self.compass = None
-        self.speed_ms = None
+        self.previous_ego_gps = None
         self.near_node = None
+        self.compass = 0.0
+        self.speed_ms = 0.0
 
         # load pretrained ResNet
         self.resnet_model = models.resnet50(pretrained=False)
@@ -73,11 +74,13 @@ class DQNExperiment(BaseExperiment):
         self.done_time_episode = False
         self.done_collision = False
 
+        self.count_steps = 0
+
         # hero variables
         self.last_location = None
         self.last_velocity = 0
 
-        # Sensor stack
+        # sensor stack
         self.prev_image_0 = None
         self.prev_image_1 = None
         self.prev_image_2 = None
@@ -105,18 +108,28 @@ class DQNExperiment(BaseExperiment):
         )
         return image_space
 
-    def compute_action(self, core, action):
+    def compute_action(self, core, action_value):
         """
         Given the action, returns a carla.VehicleControl() which will be applied to the hero
         """
+        # if action_value == 0 and self.count_steps < 64:
+        #     self.constant_obs = self.image_features
+        # elif self.count_steps < 64:
+        #     action_value = 0
+        # else:
+        #     pass
+
         throttle, steer, brake = calculate_high_level_action(world=core.world,
                                                              turn_controller=self.turn_controller,
                                                              speed_controller=self.speed_controller,
-                                                             high_level_action=action,
+                                                             high_level_action=action_value,
                                                              gps=self.ego_gps,
+                                                             initial_gps=self.initial_ego_gps,
                                                              theta=self.compass,
+                                                             initial_theta=self.initial_compass,
                                                              speed=self.speed_ms,
-                                                             near_node=self.near_node)
+                                                             near_node=self.near_node,
+                                                             far_target=self.far_node)
 
         action = carla.VehicleControl()
         action.throttle = float(throttle)
@@ -140,22 +153,35 @@ class DQNExperiment(BaseExperiment):
         """
         stack_images = False # TODO: remove this option
 
-        self.previous_ego_gps = self.ego_gps
         self.ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
-        self.compass = sensor_data['imu'][1][-1]
+        if self.count_steps % 10 == 0:
+            self.previous_ego_gps = self.ego_gps
 
+        self.count_steps += 1
+
+        ego_transform = hero.get_transform()
+        ego_yaw_deg = ego_transform.rotation.yaw
+
+        # self.compass = sensor_data['imu'][1][-1] # radians
+        self.compass = np.math.radians(ego_yaw_deg + 90)
+        if np.isnan(self.compass) or self.compass is None:
+            print("[Error]: compass is nan ->", self.compass)
+            self.compass = 0.0
+        
+        if self.count_steps == 1:
+            self.initial_compass = self.compass
+            self.initial_ego_gps = self.ego_gps
+        
         speed_kmph = get_speed(hero)
-        self.speed_ms = 0.277778 * speed_kmph
+        self.speed_ms = speed_kmph / 3.6
 
         self.near_node, near_command = self.route_planner.run_step(gps=self.ego_gps)
-        far_node, far_command = self.command_planner.run_step(gps=self.ego_gps)
+        self.far_node, far_command = self.command_planner.run_step(gps=self.ego_gps)
 
         if stack_images:
             # image = post_process_image(sensor_data['birdview'][1], normalized = False, grayscale = False)
             image = post_process_image(sensor_data['front_camera'][1], normalized=False, grayscale=False) # TODO: give normalized input to the network
 
-            print("image : ", image)
-            print(image.shape, type(image))
             if self.prev_image_0 is None:
                 self.prev_image_0 = image
                 self.prev_image_1 = self.prev_image_0
@@ -187,6 +213,15 @@ class DQNExperiment(BaseExperiment):
                 image_features = image_features_torch.cpu().detach().numpy()[0]
                 image_features = image_features.reshape(self.ResNetShape)
 
+            # self.image_features = image_features
+
+            # if self.count_steps == 1:
+            #     self.constant_obs = self.image_features
+
+            # if self.count_steps < 64:
+            #     return self.constant_obs, {}
+            # else:
+            #     return image_features, {}
             return image_features, {}
 
     def get_done_status(self, sensor_data, core):
@@ -217,16 +252,14 @@ class DQNExperiment(BaseExperiment):
         world = core.world
 
         reward = 0.0
-
-        ego_speed_kmph = get_speed(hero)
         throttle = self.last_action.throttle
 
         is_light, is_walker, is_vehicle, _ = traffic_data(hero, world)
-        print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
 
         if IS_STUCK_VEHICLE: # TODO: change this
             objects_of_concern = []
         else:
+            print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
             objects_of_concern = [is_light, is_walker, is_vehicle]
 
         if any(x is not None for x in objects_of_concern):
@@ -238,9 +271,9 @@ class DQNExperiment(BaseExperiment):
             else:
                 print("[Penalty]: not braking !")
 
-            reward -= ego_speed_kmph
+            reward -= self.speed_ms
         else:
-            reward += ego_speed_kmph
+            reward += self.speed_ms
         
         # distance from starting position
         reward += np.linalg.norm(self.ego_gps - self.previous_ego_gps)
@@ -248,8 +281,8 @@ class DQNExperiment(BaseExperiment):
         # negative reward for collision
         if 'collision' in sensor_data:
             print("[Penalty]: collision !")
-            reward -= 100
+            reward -= 1000
 
-        print("Ego speed kmh-",ego_speed_kmph, " throttle-",throttle, " ego_gps-",self.ego_gps)
+        print("[Info]: Step-", self.count_steps, " speed m/s-", self.speed_ms, " throttle-", throttle, " ego_gps-", self.ego_gps)
         
         return reward
