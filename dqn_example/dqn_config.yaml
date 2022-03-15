@@ -7,20 +7,20 @@ num_workers: 1
 num_gpus: 0
 num_gpus_per_worker: 1
 num_cpus_per_worker: 8
-rollout_fragment_length: 200
-timesteps_per_iteration: 0
+rollout_fragment_length: 256
 train_batch_size: 64
-learning_starts: 10 #1000
+learning_starts: 1000
 buffer_size: 200_000
 horizon: 250
 lr: 0.0025
+grad_clip: 1.0
 
 # "batch_mode": "complete_episodes"
 
 # === RAINBOW ===
 num_atoms: 51 # more than 1
-v_min: -100.0 # TODO: set v_min and v_max according to your expected range of returns
-v_max: 50.0
+v_min: -1050.0 # TODO: set v_min and v_max according to your expected range of returns
+v_max: 105.0
 noisy: True
 dueling: True
 double_q: True
@@ -30,9 +30,9 @@ prioritized_replay: True
 # === EXPLORATION ===
 "exploration_config": {
   "type": "EpsilonGreedy",
-  "initial_epsilon": 1.0,
-  "final_epsilon": 0.02,
-  "epsilon_timesteps": 2_000_000
+  "initial_epsilon": 0.999,
+  "final_epsilon": 0.001,
+  "epsilon_timesteps": 500_000
 }
 
 # === NETWORK ===
@@ -83,7 +83,7 @@ env_config:
     debug_mode: 0
   experiment:
     hero:
-      routes: "routes/failed_routes/town05_short/traffic_light_3.xml" #town05_long/stuck_vehicle_1.xml" #town01_short/red_light_1.xml"
+      routes: "routes/failed_routes/town05_long/stuck_vehicle_1.xml" #town05_short/traffic_light_3.xml" # #town01_short/red_light_1.xml"
       scenarios: "scenarios/all_towns_traffic_scenarios_WOR.json"
       repetitions: 1
       debug_mode: 0
@@ -104,6 +104,7 @@ env_config:
           chromatic_aberration_offset: 0
         gps:
           type: "sensor.other.gnss"
+          sensor_tick: 0.01
           noise_alt_stddev: 0.000005
           noise_lat_stddev: 0.000005
           noise_lon_stddev: 0.000005
@@ -112,6 +113,7 @@ env_config:
           noise_lon_bias: 0.0
         imu:
           type: "sensor.other.imu"
+          sensor_tick: 0.05
           noise_accel_stddev_x: 0.001
           noise_accel_stddev_y: 0.001
           noise_accel_stddev_z: 0.015
