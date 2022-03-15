@@ -177,7 +177,7 @@ def get_position(gps, route_planner):
 
 def get_speed(hero):
     # Computes the speed of the hero vehicle in Km/h
-    vel = hero.get_velocity()
+    vel = hero.get_velocity() # TODO: Resetting ego-vehicle! RuntimeError: trying to operate on a destroyed actor; an actor's function was called, but the actor is already destroyed.
     return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
 
 

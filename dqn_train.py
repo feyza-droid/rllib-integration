@@ -110,6 +110,9 @@ def update_routes_and_scenarios_files(config):
     cwd = os.getcwd()
     path = cwd + "/custom_scenario_runner/"
 
+    if not os.path.exists(path):
+        raise Exception(path + " does not exist!")
+
     config["env_config"]["experiment"]["hero"]["routes"] = path + config["env_config"]["experiment"]["hero"]["routes"]
     config["env_config"]["experiment"]["hero"]["scenarios"] = path + config["env_config"]["experiment"]["hero"]["scenarios"]
 
@@ -152,7 +155,7 @@ def main():
                            help="Flag to use auto address")
     argparser.add_argument("-i", "--n_iters",
                            metavar="I",
-                           default=1,
+                           default=5000,
                            help="Total number of training iterations")
 
     args = argparser.parse_args()
