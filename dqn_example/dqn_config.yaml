@@ -78,8 +78,8 @@ env_config:
     resolution_y: 400
     quality_level: "Epic"
     enable_map_assets: True
-    enable_rendering: False
-    show_display: False
+    enable_rendering: True
+    show_display: True
     debug_mode: 0
   experiment:
     hero:
@@ -124,7 +124,7 @@ env_config:
           type: "sensor.other.collision"
     background_activity:
       tm_hybrid_mode: True
-    town: "Town01"
+    town: "Town05"
     others:
       framestack: 4
       max_time_idle: 500

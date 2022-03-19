@@ -170,14 +170,15 @@ def launch_tensorboard(logdir, host="localhost", port="6006"):
 
 
 def get_position(gps, route_planner):
-    # Gets global latitude and longitude coordinates
+    # gets global latitude and longitude coordinates
     converted_gps = (gps - route_planner.mean) * route_planner.scale
     return converted_gps
 
 
+# TODO: Resetting ego-vehicle! RuntimeError: trying to operate on a destroyed actor; an actor's function was called, but the actor is already destroyed.
 def get_speed(hero):
-    # Computes the speed of the hero vehicle in Km/h
-    vel = hero.get_velocity() # TODO: Resetting ego-vehicle! RuntimeError: trying to operate on a destroyed actor; an actor's function was called, but the actor is already destroyed.
+    # computes the speed of the hero vehicle in km/h
+    vel = hero.get_velocity()
     return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
 
 
@@ -247,17 +248,19 @@ def calculate_high_level_action(world, turn_controller, speed_controller, high_l
     2 -> no brake - keep lane (stay at next_waypoint's lane)
     3 -> no brake - go to right lane of next_waypoint
     """
-    high_level_action = 3
 
-    if high_level_action == 1: # left
+    # left
+    if high_level_action == 1:
         offset = -3.5
         new_near_node = shift_point(ego_compass=initial_theta, ego_gps=initial_gps, near_node=near_node, offset_amount=offset)
     
-    elif high_level_action == 3: # right
+    # right
+    elif high_level_action == 3:
         offset = 3.5
         new_near_node = shift_point(ego_compass=initial_theta, ego_gps=initial_gps, near_node=near_node, offset_amount=offset)
     
-    else: # keep lane
+    # keep lane
+    else:
         offset = 0.0
         new_near_node = near_node
     
@@ -267,10 +270,12 @@ def calculate_high_level_action(world, turn_controller, speed_controller, high_l
     # get auto-pilot actions
     steer, throttle, angle = get_control(turn_controller, speed_controller, new_near_node, far_target, gps, theta, speed)
 
-    if high_level_action == 0: # brake
+    # brake
+    if high_level_action == 0:
         throttle = 0.0
         brake = 1.0
-    else: # no brake
+    # no brake
+    else:
         throttle = throttle
         brake = 0.0
 
@@ -296,7 +301,9 @@ def traffic_data(hero_vehicle, world):
     light = is_light_red(traffic_lights)
     walker = is_walker_hazard(hero_vehicle, walkers_list)
     vehicle = is_vehicle_hazard(hero_vehicle, vehicle_list)
-    # stop = is_stop_sign(stop) # TODO:
+    
+    # TODO: should be used with autopilot
+    # stop = is_stop_sign(stop)
 
     return light, walker, vehicle, stop
 
@@ -336,6 +343,7 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
 
         total = a + b
         threshold = 1.0
+
         if dist + threshold > total:
             continue
 
@@ -346,43 +354,50 @@ def get_nearby_lights(vehicle, lights, pixels_per_meter=5.5, size=512, radius=5)
 
 def is_light_red(traffic_lights):
     for light in traffic_lights:
+        
         if light.get_state() == carla.TrafficLightState.Red:
             return True
+        
         elif light.get_state() == carla.TrafficLightState.Yellow:
             return True
+    
     return None
 
 
 def is_walker_hazard(hero_vehicle, walkers_list):
     p1 = _numpy(hero_vehicle.get_location())
     v1 = 10.0 * _orientation(hero_vehicle.get_transform().rotation.yaw)
+    
     for walker in walkers_list:
         v2_hat = _orientation(walker.get_transform().rotation.yaw)
         s2 = np.linalg.norm(_numpy(walker.get_velocity()))
+        
         if s2 < 0.05:
             v2_hat *= s2
+        
         p2 = -3.0 * v2_hat + _numpy(walker.get_location())
         v2 = 8.0 * v2_hat
+        
         collides, collision_point = get_collision(p1, v1, p2, v2)
+        
         if collides:
             return walker
+    
     return None
 
-# TODO:
-"""
-def is_stop_sign(is_stop):
-    if self.stop_step < 200 and is_stop is not None:
-        self.stop_step += 1
-        self.not_brake_step = 0
+# TODO: not used yet
+def is_stop_sign(is_stop, stop_step, not_brake_step):
+    if stop_step < 200 and is_stop is not None:
+        stop_step += 1
+        not_brake_step = 0
         return True
     
     else:
-        if self.not_brake_step < 300:
-            self.not_brake_step += 1 
+        if not_brake_step < 300:
+            not_brake_step += 1 
         else:
-            self.stop_step = 0
+            stop_step = 0
         return None
-"""
 
 
 def _numpy(carla_vector, normalize=False):
@@ -406,7 +421,9 @@ def get_collision(p1, v1, p2, v2):
         return False, None
 
     x = np.linalg.solve(A, b)
-    collides = all(x >= 0) and all(x <= 1) # how many seconds until collision
+
+    # how many seconds until collision
+    collides = all(x >= 0) and all(x <= 1)
 
     return collides, p1 + x[0] * v1
 
@@ -414,24 +431,36 @@ def get_collision(p1, v1, p2, v2):
 def is_vehicle_hazard(hero_vehicle, vehicle_list):
     o1 = _orientation(hero_vehicle.get_transform().rotation.yaw)
     p1 = _numpy(hero_vehicle.get_location())
-    s1 = max(10, 3.0 * np.linalg.norm(_numpy(hero_vehicle.get_velocity()))) # increases the threshold distance
+
+    # increases the threshold distance
+    s1 = max(10, 3.0 * np.linalg.norm(_numpy(hero_vehicle.get_velocity())))
+
     v1_hat = o1
     v1 = s1 * v1_hat
+    
     for target_vehicle in vehicle_list:
         if target_vehicle.id == hero_vehicle.id:
             continue
+        
         o2 = _orientation(target_vehicle.get_transform().rotation.yaw)
         p2 = _numpy(target_vehicle.get_location())
+        
         s2 = max(5.0, 2.0 * np.linalg.norm(_numpy(target_vehicle.get_velocity())))
+        
         v2_hat = o2
         v2 = s2 * v2_hat
         p2_p1 = p2 - p1
+        
         distance = np.linalg.norm(p2_p1)
+        
         p2_p1_hat = p2_p1 / (distance + 1e-4)
+        
         angle_to_car = np.degrees(np.arccos(v1_hat.dot(p2_p1_hat)))
         angle_between_heading = np.degrees(np.arccos(o1.dot(o2)))
+        
         angle_to_car = min(angle_to_car, 360.0 - angle_to_car)
         angle_between_heading = min(angle_between_heading, 360.0 - angle_between_heading)
+        
         if angle_between_heading > 60.0 and not (angle_to_car < 15 and distance < s1):
             continue
         elif angle_to_car > 30.0:
@@ -441,7 +470,9 @@ def is_vehicle_hazard(hero_vehicle, vehicle_list):
             continue
         elif distance > s1:
             continue
+        
         return target_vehicle
+    
     return None
 
 

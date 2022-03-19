@@ -16,7 +16,8 @@ from gym.spaces import Box, Discrete
 import carla
 
 from rllib_integration.base_experiment import BaseExperiment
-from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, traffic_data, PIDController
+from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, traffic_data
+from rllib_integration.helper import PIDController
 
 IS_STUCK_VEHICLE = True
 
@@ -36,7 +37,7 @@ class DQNExperiment(BaseExperiment):
         self.last_heading_deviation = 0
         self.last_action = None
 
-        self.turn_controller = PIDController(K_P=5.0, K_I=3, K_D=3.0, n=40)
+        self.turn_controller = PIDController(K_P=1.25, K_I=0.75, K_D=0.3, n=40)
         self.speed_controller = PIDController(K_P=5.0, K_I=0.5, K_D=1.0, n=40)
 
         self.route_planner = None
@@ -112,12 +113,6 @@ class DQNExperiment(BaseExperiment):
         """
         Given the action, returns a carla.VehicleControl() which will be applied to the hero
         """
-        # if action_value == 0 and self.count_steps < 64:
-        #     self.constant_obs = self.image_features
-        # elif self.count_steps < 64:
-        #     action_value = 0
-        # else:
-        #     pass
 
         throttle, steer, brake = calculate_high_level_action(world=core.world,
                                                              turn_controller=self.turn_controller,
@@ -153,20 +148,35 @@ class DQNExperiment(BaseExperiment):
         """
         stack_images = False # TODO: remove this option
 
-        self.ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
+        # get orientation and position of the ego vehicle from the simulator
+        ego_transform = hero.get_transform()
+        
+        # yaw angle of the ego vehicle in degrees
+        ego_yaw_deg = ego_transform.rotation.yaw
+        # simulator position of the ego vehicle (x, y, z)
+        ego_location = ego_transform.location
+
+        # NOTE: IMU sensor data is not accurate and lags, so ground truth simulator is used
+        # self.compass = sensor_data['imu'][1][-1] # radians
+
+        # map coordinate frame is rotated 90 degrees
+        self.compass = np.math.radians(ego_yaw_deg + 90)
+        
+        # ignore IMU sensor nan values
+        if np.isnan(self.compass) or self.compass is None:
+            print("[Error]: compass is nan ->", self.compass)
+            self.compass = 0.0
+
+        # NOTE: GPS sensor data is not accurate and lags, so ground truth simulator is used
+        # self.ego_gps = get_position(gps=sensor_data['gps'][1][:2], route_planner=self.route_planner)
+
+        # directly convert ego vehicle position obtained from simulator to map coordinate frame (90 degrees)
+        self.ego_gps = np.array([-ego_location.y, ego_location.x])
+        
         if self.count_steps % 10 == 0:
             self.previous_ego_gps = self.ego_gps
 
         self.count_steps += 1
-
-        ego_transform = hero.get_transform()
-        ego_yaw_deg = ego_transform.rotation.yaw
-
-        # self.compass = sensor_data['imu'][1][-1] # radians
-        self.compass = np.math.radians(ego_yaw_deg + 90)
-        if np.isnan(self.compass) or self.compass is None:
-            print("[Error]: compass is nan ->", self.compass)
-            self.compass = 0.0
         
         if self.count_steps == 1:
             self.initial_compass = self.compass
@@ -213,15 +223,6 @@ class DQNExperiment(BaseExperiment):
                 image_features = image_features_torch.cpu().detach().numpy()[0]
                 image_features = image_features.reshape(self.ResNetShape)
 
-            # self.image_features = image_features
-
-            # if self.count_steps == 1:
-            #     self.constant_obs = self.image_features
-
-            # if self.count_steps < 64:
-            #     return self.constant_obs, {}
-            # else:
-            #     return image_features, {}
             return image_features, {}
 
     def get_done_status(self, sensor_data, core):
@@ -256,7 +257,8 @@ class DQNExperiment(BaseExperiment):
 
         is_light, is_walker, is_vehicle, _ = traffic_data(hero, world)
 
-        if IS_STUCK_VEHICLE: # TODO: change this
+        # TODO: check if correctly applicable
+        if IS_STUCK_VEHICLE:
             objects_of_concern = []
         else:
             print("[Traffic]: traffic light-", is_light, " walker-", is_walker, " vehicle-", is_vehicle)
