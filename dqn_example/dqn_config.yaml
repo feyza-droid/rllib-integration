@@ -6,7 +6,7 @@ framework: "torch"
 num_workers: 1
 num_gpus: 0
 num_gpus_per_worker: 1
-num_cpus_per_worker: 8
+num_cpus_per_worker: 6
 rollout_fragment_length: 4
 train_batch_size: 64
 learning_starts: 1000
@@ -20,7 +20,7 @@ grad_clip: 1.0
 # === RAINBOW ===
 num_atoms: 51 # more than 1
 v_min: -900.0 # NOTE: set v_min and v_max according to your expected range of returns
-v_max: 1300.0
+v_max: 1500.0
 noisy: True
 dueling: True
 double_q: True
@@ -78,8 +78,8 @@ env_config:
     resolution_y: 400
     quality_level: "Epic"
     enable_map_assets: True
-    enable_rendering: True
-    show_display: True
+    enable_rendering: False
+    show_display: False
     debug_mode: 0
   experiment:
     hero:

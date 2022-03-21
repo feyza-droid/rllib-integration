@@ -46,7 +46,7 @@ def run(args):
         ray.init(address= "auto" if args.auto else None)
 
         num_of_iterations = args.n_iters
-        checkpoint_save_freq = 100
+        checkpoint_save_freq = 25
 
         # ray.tune.run(
         #     CustomDQNTrainer,
