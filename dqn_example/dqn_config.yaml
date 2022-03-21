@@ -7,20 +7,20 @@ num_workers: 1
 num_gpus: 0
 num_gpus_per_worker: 1
 num_cpus_per_worker: 8
-rollout_fragment_length: 256
+rollout_fragment_length: 4
 train_batch_size: 64
 learning_starts: 1000
 buffer_size: 200_000
-horizon: 1000
-lr: 0.0025
+horizon: 250
+lr: 0.0005
 grad_clip: 1.0
 
 # "batch_mode": "complete_episodes"
 
 # === RAINBOW ===
 num_atoms: 51 # more than 1
-v_min: -1050.0 # TODO: set v_min and v_max according to your expected range of returns
-v_max: 105.0
+v_min: -900.0 # NOTE: set v_min and v_max according to your expected range of returns
+v_max: 1300.0
 noisy: True
 dueling: True
 double_q: True
@@ -28,12 +28,12 @@ n_step: 5 # between 1 and 10
 prioritized_replay: True
 
 # === EXPLORATION ===
-"exploration_config": {
-  "type": "EpsilonGreedy",
-  "initial_epsilon": 0.999,
-  "final_epsilon": 0.001,
-  "epsilon_timesteps": 500_000
-}
+explore: True
+exploration_config:
+  type: "EpsilonGreedy"
+  initial_epsilon: 1.0
+  final_epsilon: 0.01
+  epsilon_timesteps: 500_000
 
 # === NETWORK ===
 # hiddens: [256, 512]

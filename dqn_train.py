@@ -46,7 +46,7 @@ def run(args):
         ray.init(address= "auto" if args.auto else None)
 
         num_of_iterations = args.n_iters
-        checkpoint_save_freq = 1
+        checkpoint_save_freq = 100
 
         # ray.tune.run(
         #     CustomDQNTrainer,
@@ -79,9 +79,11 @@ def run(args):
                 policy = trainer.get_policy()
                 model = policy.model
 
+                epsilon = policy.exploration.get_info()['cur_epsilon']
+
                 # saving torch model
                 torch.save(model.fc_layers.state_dict(), os.path.join(args.directory, "checkpoint_iter_" + str(_iter) + ".pth"))
-                print("[Info] -> Model Checkpoint is Saved !")
+                print("[Info] -> Model Checkpoint is Saved ! when exploration epsilon value is :", epsilon)
         
     finally:
         print("\n[Info]: Shut Down!")
@@ -155,7 +157,7 @@ def main():
                            help="Flag to use auto address")
     argparser.add_argument("-i", "--n_iters",
                            metavar="I",
-                           default=5000,
+                           default=200_000,
                            help="Total number of training iterations")
 
     args = argparser.parse_args()
