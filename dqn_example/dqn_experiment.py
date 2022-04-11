@@ -19,7 +19,7 @@ from rllib_integration.base_experiment import BaseExperiment
 from rllib_integration.helper import post_process_image, process_image_for_dnn, get_position, get_speed, calculate_high_level_action, traffic_data
 from rllib_integration.helper import PIDController
 
-IS_STUCK_VEHICLE = True
+IS_STUCK_VEHICLE = False
 
 
 class DQNExperiment(BaseExperiment):
@@ -265,6 +265,10 @@ class DQNExperiment(BaseExperiment):
             objects_of_concern = [is_light, is_walker, is_vehicle]
 
         if any(x is not None for x in objects_of_concern):
+
+            # fix step counter while waiting traffic light or front vehicle, and pedestrian
+            self.time_episode -= 1
+
             # accelerating while it should brake
             if throttle < 0.1:
                 print("[Reward]: correctly braking !")
@@ -272,6 +276,7 @@ class DQNExperiment(BaseExperiment):
                 reward += 50
             else:
                 print("[Penalty]: not braking !")
+                reward -= 50
 
             reward -= self.speed_ms
         else:
@@ -283,7 +288,7 @@ class DQNExperiment(BaseExperiment):
         # negative reward for collision
         if 'collision' in sensor_data:
             print("[Penalty]: collision !")
-            reward -= 1000
+            reward = -1000
 
         print("[Info]: Step-", self.count_steps, " speed m/s-", self.speed_ms, " throttle-", throttle, " ego_gps-", self.ego_gps)
         
